@@ -97,11 +97,30 @@ void Payload::handleMessage(cMessage *msg)
     }
 
     else if(strcmp(getName(), "in_flow") == 0){
-        toModuleName(req, "link_input");
-    }else if(strcmp(getName(), "link_input")==0 || strcmp(getName(), "link_output")==0){
-        send(req, "out", 0);
+        if(strcmp(from_module_name.c_str(), "link_input") == 0)
+            toModuleName(req, getParentModule()->getName());
+        else
+            toModuleName(req, "link_input");
+
+        if(strlen(req->getSendPath()) > 1)
+            popPath(req, 's');
+        else
+            popPath(req, 'b');
+    }else if(strcmp(getName(), "link_input") == 0){
+        if(strcmp(from_module_name.c_str(), "in_flow") == 0)
+            toModuleName(req, "link_output");
+        else if(strcmp(from_module_name.c_str(), "link_output") == 0)
+            toModuleName(req, "in_flow");
+    }else if(strcmp(getName(), "link_output") == 0){
+        if(strcmp(from_module_name.c_str(), "link_input") == 0)
+            toModuleName(req, "out_flow");
+        else if(strcmp(from_module_name.c_str(), "out_flow") == 0)
+            toModuleName(req, "link_input");
     }else if(strcmp(getName(), "out_flow") == 0){
-        send(req, "out", getGateToExit());
+        if(strcmp(from_module_name.c_str(), "link_output") == 0)
+            toModuleName(req, getParentModule()->getName());
+        else
+            toModuleName(req, "link_output");
     }
 
     else if(strcmp(getName(), "cn_memory_hca") == 0){
@@ -129,11 +148,12 @@ void Payload::handleMessage(cMessage *msg)
             }else{
                 toModuleName(req, "sink[0]");
             }
-        }else if(strcmp(from_module_name.c_str(), "edge") == 0){
+        }else if(strcmp(from_module_name.c_str(), "out_flow") == 0){
             if(!req->getFinished()){
                 if(req->getWork_type() == 'w'){ // write request return to sink[1], without returnning to CN
                     work_arrive_status[req->getSrc_addr()][req->getMaster_id()][req->getId()] = 0;
                 }
+
                 toModuleName(req, req->getDes_addr());
             }else{
                 toModuleName(req, req->getSrc_addr());
@@ -156,8 +176,10 @@ int Payload::getGateToExit() {
 }
 
 void Payload::toModuleName(Request* req, const std::string m_name) {
+    cGate* g;
     if(gate_to_neighbor.count(m_name)) {
-        send(req, gate_to_neighbor[m_name].first.c_str(), gate_to_neighbor[m_name].second);
+        g = gate(gate_to_neighbor[m_name].first.c_str(), gate_to_neighbor[m_name].second);
+        sendDelayed(req, transTimestampByCable(g)-simTime(), gate_to_neighbor[m_name].first.c_str(), gate_to_neighbor[m_name].second);
     }else{
         std::vector<std::string> m_name_vec;
         for(auto ele:gate_to_neighbor){
@@ -167,7 +189,8 @@ void Payload::toModuleName(Request* req, const std::string m_name) {
         }
 
         std::string chosen_m_name = m_name_vec[intuniform(0, m_name_vec.size()-1, par("rng").intValue())];
-        send(req, gate_to_neighbor[chosen_m_name].first.c_str(), gate_to_neighbor[chosen_m_name].second);
+        g = gate(gate_to_neighbor[chosen_m_name].first.c_str(), gate_to_neighbor[chosen_m_name].second);
+        sendDelayed(req, transTimestampByCable(g)-simTime(), gate_to_neighbor[chosen_m_name].first.c_str(), gate_to_neighbor[chosen_m_name].second);
     }
 }
 

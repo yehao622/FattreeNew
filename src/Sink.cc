@@ -55,15 +55,15 @@ void Sink::initialize()
             }
         }
 
-        //    for(auto mod:system_layout){
-        //        EV << mod.first << " connected with: \n";
-        //        for(auto conn_mod:mod.second){
-        //            EV << "    " << conn_mod.first << " at gate: " << conn_mod.second.first << " index: " << conn_mod.second.second << "\n";
-        //        }
-        //    }
-
-        //    for(auto a: all_cn) EV << a << " "; EV << "\n";
-        //    for(auto a: all_oss) EV << a << " "; EV << "\n";
+//            for(auto mod:system_layout){
+//                EV << mod.first << " connected with: \n";
+//                for(auto conn_mod:mod.second){
+//                    EV << "    " << conn_mod.first << " at gate: " << conn_mod.second.first << " index: " << conn_mod.second.second << "\n";
+//                }
+//            }
+//
+//            for(auto a: all_cn) EV << a << " "; EV << "\n";
+//            for(auto a: all_oss) EV << a << " "; EV << "\n";
         std::vector<std::string> cn_cn, cn_oss;
         for(int i=0; i<all_cn.size(); i++){
             for(int j=i+1; j<all_cn.size(); j++){
@@ -129,7 +129,7 @@ void Sink::findPathCNtoCN(std::string cn_src, std::string cn_tar, std::string mi
         path.pop_back();
         return;
     }
-    if(path.size()>9 ||
+    if(path.size()>15 ||
             (mid.substr(0,2)=="cn" && path.size()>1 && (mid!=cn_tar)) ||
             mid.substr(0,4)=="sink" ||
             mid.substr(0,3)=="oss"){
@@ -160,7 +160,7 @@ void Sink::findPathCNtoOSS(std::string cn, std::string oss, std::string mid, std
         path.pop_back();
         return;
     }
-    if(path.size()>9 ||
+    if(path.size()>15 ||
             (mid.substr(0,2)=="cn" && path.size()>1) ||
             mid.substr(0,3)=="oss" ||
             mid.substr(0,4)=="sink"){
@@ -176,7 +176,7 @@ void Sink::findPathCNtoOSS(std::string cn, std::string oss, std::string mid, std
 }
 
 bool Sink::checkPath(const std::vector<std::string> &path) {
-    if(path.size() <= 3) return false;
+    if(path.size() <= 6) return false;
 
     std::map<std::string, int> switch_count;
     for(auto a:path){
@@ -188,7 +188,7 @@ bool Sink::checkPath(const std::vector<std::string> &path) {
             }
         }
     }
-    return true;
+    return switch_count.size();
 }
 
 void Sink::generateShortPaths(std::vector<std::vector<std::string>>& avail_paths) {

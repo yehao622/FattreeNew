@@ -28,27 +28,26 @@ network Infiniband
         @display("i=abstract/table2;bgb=696,278");
         int num_link = default(8);
     gates:
-        input in;
-        output out;
+        inout port[];
     submodules:
         in_flow: Payload {
             @display("p=58,132");
         }
         link_input[num_link]: Payload {
-            @display("p=249,132");
+            @display("p=248,79,c,20");
         }
         link_output[num_link]: Payload {
-            @display("p=399,132");
+            @display("p=395,79,c,20");
         }
         out_flow: Payload {
             @display("p=577,132");
         }
     connections:
-        in --> in_flow.in++;
+        port++ <--> in_flow.port++;
         for i=0..(num_link-1) {
-            in_flow.out++ --> link_input[i].in++;
-            link_input[i].out++ --> infiFibre --> link_output[i].in++;
-            link_output[i].out++ --> out_flow.in++;
+            in_flow.port++ <--> link_input[i].port++;
+            link_input[i].port++ <--> infiFibre <--> link_output[i].port++;
+            link_output[i].port++ <--> out_flow.port++;
         }
-        out_flow.out++ --> out;
+        out_flow.port++ <--> port++;
 }
