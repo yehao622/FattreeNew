@@ -64,61 +64,55 @@ network Fattreenew
         int num_cn = int(edge_aggr_port/2 * edge_aggr_port - num_oss);
 
     submodules:
-//        core[num_core]: Switch {
-//            @display("p=305,99,r,20;is=s");
-//        }
-//
-//        aggr[num_aggr]: Switch {
-//            @display("p=207.50499,149.00624,r,20;is=s");
-//        }
-//
-//        edge[num_edge]: Switch {
-//            @display("p=152.31749,204.19374,r,20;is=s");
-//        }
-
-//        cn[num_cn]: ComputeNode {
-//            @display("p=152.31749,281.45624,m,16,20;is=s");
-//        }
-
-//        oss[num_oss]: OSS {
-//            @display("p=740.6162,166.66624,r,20;is=s");
-//        }
-
-        //        mds: MDS {
-        //            @display("p=1196.0062,115.912506");
-        //        }
         sink[2]: Sink {
-            @display("p=556.73126,667.375,r,20;is=s");
+            @display("p=560.71204,713.91205,r,20;is=s");
         }
         cn[num_cn]: ComputeNode {
-            @display("p=110.64375,414.475,m,8,40;is=n");
+            @display("p=111.836006,470.324,m,8,40;is=n");
         }
         edge[num_edge]: Buffer {
-            @display("p=261.68124,179.1375,r,40;i=old/srouter");
+            @display("p=260.44,240.524,r,40;i=old/srouter");
         }
         aggr[num_aggr]: Buffer {
-            @display("i=old/srouter,#26A269;p=261.68124,103.61875,r,40");
+            @display("i=old/srouter,#26A269;p=260.44,131.752,r,40");
         }
         core[num_core]: Buffer {
             @display("p=261.68124,36.881252,r,80;i=old/srouter,#ED333B");
         }
         oss[num_oss]: OSS {
-            @display("p=707.76874,481.21252,r,40");
+            @display("p=709.31604,603.60803,r,40");
         }
         edge_connect[num_edge]: Payload {
-            @display("p=261.68124,282.75626,r,40");
+            @display("p=260.44,361.552,r,40");
+        }
+        inif_edge_cn[num_edge]: Infiniband {
+            @display("p=260.44,300.272,r,40");
+        }
+        inif_aggr_edge[int(num_edge * edge_aggr_port/2)]: Infiniband {
+            @display("p=144.00801,185.37201,r,20");
+        }
+        inif_core_aggr[num_core * core_port]: Infiniband {
+            @display("p=144.00801,85.792,r,20");
         }
     connections allowunconnected:
         for i=0..(num_edge-1) {
-            edge[i].port++ <--> edge_connect[i].port++;
+            edge[i].port++ <--> inif_edge_cn[i].port++;
+            inif_edge_cn[i].port++ <--> edge_connect[i].port++;
             edge_connect[i].port++ <--> sink[0].port++;
             edge_connect[i].port++ <--> sink[1].port++;
         }
-        for i=0..(int(2*num_edge/edge_aggr_port)-1), for j=0..(int(edge_aggr_port/2)-1), for k=0..(int(edge_aggr_port/2)-1) {
-            edge[i*int(edge_aggr_port/2)+j].port++ <--> aggr[i*int(edge_aggr_port/2)+k].port++;
+        for i=0..(int(num_edge * edge_aggr_port/2) - 1) {
+            edge[int(i/(edge_aggr_port/2))].port++ <--> inif_aggr_edge[i].port++;
         }
-        for i=0..(num_core-1), for j=0..(core_port-1) {
-            core[i].port++ <--> aggr[(i*core_port + j) % num_aggr].port++;
+        for i=0..(num_core-1), for j=0..(int(edge_aggr_port/2) * int(edge_aggr_port/2) - 1) {
+            inif_aggr_edge[i * int(edge_aggr_port/2) * int(edge_aggr_port/2) + j].port++ <--> aggr[i * int(edge_aggr_port/2) + j % int(edge_aggr_port/2)].port++;
+        }
+//        for i=0..(num_core-1), for j=0..(core_port-1) {
+//            core[i].port++ <--> aggr[(i*core_port + j) % num_aggr].port++;
+//        }
+        for i=0..(int(num_aggr * edge_aggr_port/2) - 1) {
+            aggr[int(i/(edge_aggr_port/2))].port++ <--> inif_core_aggr[i].port++;
+            inif_core_aggr[i].port++ <--> core[i % num_core].port++;
         }
 
         for i=0..(num_edge-1), for j=0..(int(edge_aggr_port/2)-2) {
@@ -130,29 +124,5 @@ network Fattreenew
             oss[i].out --> edge_connect[i].in++;
             edge_connect[i].out++ --> oss[i].in;
         }
-
-//        for i=0..(num_aggr-1), for j=0..(int(K_port/2-1)) {
-//            core[(i * int(K_port/2)) % num_core + j].port++ <--> Link <--> aggr[i].port++;
-//        }
-
-//        for i=0..(num_oss-1), for j=0..(int(K_port/2-1)) {
-//            core[(i * int(K_port/2)) % num_core + j].port++ <--> Link <--> oss[i].port++;
-//        }
-
-//        for i=0..(num_core-1) {
-//            core[i].port++ <--> mds.port++;
-//        }
-
-//        for i=0..(pod_cn-1), for j=0..(int(K_port/2-1)), for k=0..(int(K_port/2-1)) {
-//            aggr[i * int(K_port/2) + j].port++ <--> Link <--> edge[i * int(K_port/2) + k].port++;
-//        }
-
-//        for i=0..(num_edge-1), for j=0..(int(K_port/2-1)) {
-//            edge[i].port++ <--> Link <--> cn[i * int(K_port/2) + j].port++;
-//        }
-
-//        for i=0..(num_ost-1) {
-//            ost[i].port++ <--> ned.IdealChannel <--> oss[i % num_oss].port++;
-//        }
 
 }
