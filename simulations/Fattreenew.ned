@@ -51,7 +51,7 @@ simple sramBuffer extends Buffer
 network Fattreenew
 {
     parameters:
-        @display("bgb=960.66876,762.2125");
+        @display("bgb=1103.04,908.476");
         int core_port = default(16); // each switch has 4 ports, make sure 'num_core_oss' strictly less than this variable!
         int edge_aggr_port = default(8);
         //int pod_oss = default(3); //EACH core switch spares 'num_core_oss' links to OSSes, then (num_core_oss * core.port_num) links availbale to OSSes
@@ -65,16 +65,16 @@ network Fattreenew
 
     submodules:
         sink[2]: Sink {
-            @display("p=560.71204,713.91205,r,20;is=s");
+            @display("p=689.4,418.23602,r,20;is=s");
         }
         cn[num_cn]: ComputeNode {
-            @display("p=111.836006,470.324,m,8,40;is=n");
+            @display("p=73.536,640.37604,m,8,40;is=n");
         }
         edge[num_edge]: Buffer {
-            @display("p=260.44,240.524,r,40;i=old/srouter");
+            @display("p=260.44,340.104,r,40;i=old/srouter");
         }
         aggr[num_aggr]: Buffer {
-            @display("i=old/srouter,#26A269;p=260.44,131.752,r,40");
+            @display("i=old/srouter,#26A269;p=260.44,177.712,r,40");
         }
         core[num_core]: Buffer {
             @display("p=261.68124,36.881252,r,80;i=old/srouter,#ED333B");
@@ -83,21 +83,20 @@ network Fattreenew
             @display("p=709.31604,603.60803,r,40");
         }
         edge_connect[num_edge]: Payload {
-            @display("p=260.44,361.552,r,40");
+            @display("p=260.44,430.492,r,40");
         }
-        inif_edge_cn[num_edge]: Infiniband {
-            @display("p=260.44,300.272,r,40");
+        inif_edge_cn[int(edge_aggr_port*edge_aggr_port/2)]: Infiniband {
+            @display("p=260.44,531.604");
         }
         inif_aggr_edge[int(num_edge * edge_aggr_port/2)]: Infiniband {
-            @display("p=144.00801,185.37201,r,20");
+            @display("p=105.708,265.036,r,20");
         }
         inif_core_aggr[num_core * core_port]: Infiniband {
-            @display("p=144.00801,85.792,r,20");
+            @display("p=105.708,90.388,r,20");
         }
     connections allowunconnected:
         for i=0..(num_edge-1) {
-            edge[i].port++ <--> inif_edge_cn[i].port++;
-            inif_edge_cn[i].port++ <--> edge_connect[i].port++;
+            edge[i].port++ <--> edge_connect[i].port++;
             edge_connect[i].port++ <--> sink[0].port++;
             edge_connect[i].port++ <--> sink[1].port++;
         }
@@ -107,22 +106,18 @@ network Fattreenew
         for i=0..(num_core-1), for j=0..(int(edge_aggr_port/2) * int(edge_aggr_port/2) - 1) {
             inif_aggr_edge[i * int(edge_aggr_port/2) * int(edge_aggr_port/2) + j].port++ <--> aggr[i * int(edge_aggr_port/2) + j % int(edge_aggr_port/2)].port++;
         }
-//        for i=0..(num_core-1), for j=0..(core_port-1) {
-//            core[i].port++ <--> aggr[(i*core_port + j) % num_aggr].port++;
-//        }
         for i=0..(int(num_aggr * edge_aggr_port/2) - 1) {
             aggr[int(i/(edge_aggr_port/2))].port++ <--> inif_core_aggr[i].port++;
             inif_core_aggr[i].port++ <--> core[i % num_core].port++;
         }
 
-        for i=0..(num_edge-1), for j=0..(int(edge_aggr_port/2)-2) {
-            cn[int(i*(edge_aggr_port/2-1)) + j].out --> edge_connect[i].in++;
-            edge_connect[i].out++ --> cn[int(i*(edge_aggr_port/2-1)) + j].in;
+        for i=0..(num_cn-1) {
+            cn[i].port++ <--> inif_edge_cn[i].port++;
+            inif_edge_cn[i].port++ <--> edge_connect[int(i/(int(edge_aggr_port/2)-1))].port++;
         }
-
         for i=0..(num_oss-1) {
-            oss[i].out --> edge_connect[i].in++;
-            edge_connect[i].out++ --> oss[i].in;
+            oss[i].port++ <--> inif_edge_cn[i+num_cn].port++;
+            inif_edge_cn[i+num_cn].port++ <--> edge_connect[i].port++;
         }
 
 }
