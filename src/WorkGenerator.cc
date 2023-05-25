@@ -45,24 +45,31 @@ void WorkGenerator::initMsg(Request* req) {
 
     req->setGenerate_time(simTime());
     req->setSrc_addr(getParentModule()->getFullName());
-    std::string des(all_oss[intuniform(0, all_oss.size()-1, par("rng").intValue())]);
-//    std::string des(all_cn[intuniform(0, all_cn.size()-1, par("rng").intValue())]);
+
+    std::string des;
+
+    des = all_cn[intuniform(0, all_cn.size()-1, par("rng").intValue())];
+    while(strcmp(des.c_str(), getParentModule()->getFullName()) == 0) // not sent msg to itself
+        des = all_cn[intuniform(0, all_cn.size()-1, par("rng").intValue())];
+
+    // if set request is r/w on OSTs
+//    des = all_oss[intuniform(0, all_oss.size()-1, par("rng").intValue())];
+//    cModule* cm = findModuleByPath(("Fattreenew." + des).c_str());
+//    int num_ost = cm->getSubmoduleVectorSize("ost");
+//    req->setTarget_ost(intuniform(0, num_ost-1, par("rng").intValue()));
+
     req->setDes_addr(des.c_str());
-
-    cModule* cm = findModuleByPath(("Fattreenew." + des).c_str());
-    int num_ost = cm->getSubmoduleVectorSize("ost");
-    req->setTarget_ost(intuniform(0, num_ost-1, par("rng").intValue()));
-
     auto avail_paths = all_paths[req->getSrc_addr()][req->getDes_addr()];
     auto chosen_send_path = avail_paths[intuniform(0, avail_paths.size()-1, par("rng").intValue())];
+    avail_paths = all_paths[req->getDes_addr()][req->getSrc_addr()];
     auto chosen_back_path = avail_paths[intuniform(0, avail_paths.size()-1, par("rng").intValue())];
     for(std::string s:chosen_send_path){
         std::string cur_p = req->getSendPath();
         req->setSendPath((cur_p + s + ",").c_str());
     }
-    for(auto it=chosen_back_path.rbegin(); it!=chosen_back_path.rend(); it++){
+    for(std::string s:chosen_back_path){
         std::string cur_p = req->getBackPath();
-        req->setBackPath((cur_p + *it + ",").c_str());
+        req->setBackPath((cur_p + s + ",").c_str());
     }
 
     send(req, "port$o");

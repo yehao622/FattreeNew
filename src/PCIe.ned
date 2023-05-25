@@ -28,8 +28,7 @@ network PCIe
         @display("i=abstract/table2,#E66100;bgb=696,278");
         int num_link = default(32);
     gates:
-        input in;
-        output out;
+        inout port[];
     submodules:
         in_flow: Payload {
             @display("p=58,132");
@@ -44,11 +43,11 @@ network PCIe
             @display("p=577,132");
         }
     connections:
-        in --> in_flow.in++;
+        port++ <--> in_flow.port++;
         for i=0..(num_link-1) {
-            in_flow.out++ --> link_input[i].in++;
-            link_input[i].out++ --> pcieFibre --> link_output[i].in++;
-            link_output[i].out++ --> out_flow.in++;
+            in_flow.port++ <--> link_input[i].port++;
+            link_input[i].port++ <--> pcieFibre <--> link_output[i].port++;
+            link_output[i].port++ <--> out_flow.port++;
         }
-        out_flow.out++ --> out;
+        out_flow.port++ <--> port++;
 }

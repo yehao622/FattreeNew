@@ -32,9 +32,9 @@ std::string popPath(Request*, char);
 
 simtime_t transTimestampByCable(cGate*);
 
-extern std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, int>>> system_layout;
-extern std::vector<std::string> all_oss, all_cn;
-extern std::vector<std::vector<std::string>> path_cn_cn, path_cn_oss;
+extern std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, int>>> system_layout; // record each pair of modules with their gate name and index: <module1_name, <module2_name,<gate_name, gate_index>>>
+extern std::vector<std::string> all_oss, all_cn;  // all OSSes and CNs
+extern std::vector<std::vector<std::string>> path_cn_cn, path_cn_oss; // paths form CN1 to CN2; CN to OSSes
 extern std::unordered_map<std::string, std::unordered_map<std::string, std::vector<std::vector<std::string>>>> all_paths;
 
 #endif /* GENERAL_H_ */

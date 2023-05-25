@@ -112,10 +112,10 @@ void Buffer::handleMessage(cMessage *msg)
             }else{
                 avail_buffer_size -= (double)req->getByteLength() / MB;
                 simtime_t later_time = calcSendDelay(req);
-                if(strcmp(req->getSenderModule()->getName(), "oss_hub_mem_hca") == 0){
+                if(strcmp(req->getSenderModule()->getParentModule()->getName(), "pci") == 0){
                     req->setNext_hop_addr("oss_hub_mem_hba");
                 }else if(strcmp(req->getSenderModule()->getName(), "oss_hub_hba_ost") == 0){
-                    req->setNext_hop_addr("oss_hub_mem_hca");
+                    req->setNext_hop_addr("pci");
                 }
                 scheduleAt(later_time, req);
             }
@@ -139,7 +139,7 @@ void Buffer::handleMessage(cMessage *msg)
                 }
             }else{
                 avail_buffer_size += (double)req->getByteLength() / MB;
-                send(req, "port$o", getGateTo("port$o", "cn_memory_hca"));
+                send(req, "port$o", getGateTo("port$o", "pci"));
                 sendFromBuffer();
             }
         }

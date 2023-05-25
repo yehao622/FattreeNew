@@ -28,8 +28,7 @@ network OST
         @display("i=device/drive;bgb=786,317");
         int num_devs = default(10);
     gates:
-        input in;
-        output out;
+        inout port[];
     submodules:
         storageDevice[num_devs]: StorageDevice {
             @display("p=437,86,c,20");
@@ -41,10 +40,9 @@ network OST
             @display("p=102,167");
         }
     connections:
-        in --> payloadOST.in++;
+        port++ <--> payloadOST.port++;
         for i=0..(num_devs-1) {
             payloadOST.port++ <--> flashBuffer[i].port++;
             flashBuffer[i].port++ <--> storageDevice[i].port++;
         }
-        payloadOST.out++ --> out;
 }

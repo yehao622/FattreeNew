@@ -55,15 +55,15 @@ void Sink::initialize()
             }
         }
 
-//            for(auto mod:system_layout){
-//                EV << mod.first << " connected with: \n";
-//                for(auto conn_mod:mod.second){
-//                    EV << "    " << conn_mod.first << " at gate: " << conn_mod.second.first << " index: " << conn_mod.second.second << "\n";
-//                }
-//            }
-//
-//            for(auto a: all_cn) EV << a << " "; EV << "\n";
-//            for(auto a: all_oss) EV << a << " "; EV << "\n";
+        //            for(auto mod:system_layout){
+        //                EV << mod.first << " connected with: \n";
+        //                for(auto conn_mod:mod.second){
+        //                    EV << "    " << conn_mod.first << " at gate: " << conn_mod.second.first << " index: " << conn_mod.second.second << "\n";
+        //                }
+        //            }
+        //
+//                    for(auto a: all_cn) EV << a << " "; EV << "\n";
+//                    for(auto a: all_oss) EV << a << " "; EV << "\n";
         std::vector<std::string> cn_cn, cn_oss;
         for(int i=0; i<all_cn.size(); i++){
             for(int j=i+1; j<all_cn.size(); j++){
@@ -74,8 +74,8 @@ void Sink::initialize()
             }
         }
 
-        std::sort(path_cn_cn.begin(), path_cn_cn.end(), compareStrVec);
-        std::sort(path_cn_oss.begin(), path_cn_oss.end(), compareStrVec);
+//        std::sort(path_cn_cn.begin(), path_cn_cn.end(), compareStrVec);
+//        std::sort(path_cn_oss.begin(), path_cn_oss.end(), compareStrVec);
 
         generateShortPaths(path_cn_cn);
         generateShortPaths(path_cn_oss);
@@ -87,7 +87,6 @@ void Sink::handleMessage(cMessage *msg)
 {
     Request* req = check_and_cast<Request*>(msg);
 
-//    total_data_size += req->getFrag_size();//req->getData_size();
     if(req->getWork_type() == 'r') {
         total_read_size += req->getFrag_size();//req->getData_size();
         emit(rThroughputSignal, total_read_size / (1024.0 * 1024.0 * simTime().dbl()));
@@ -96,46 +95,88 @@ void Sink::handleMessage(cMessage *msg)
         emit(wThroughputSignal, total_write_size / (1024.0 * 1024.0 * simTime().dbl()));
     }
 
-//    double thrput = total_data_size / (1024.0 * 1024.0 * simTime().dbl());
-//    emit(ThroughputSignal, thrput);
     delete req;
 }
 
 void Sink::finish(){
-//    int s(0);
-//    for(auto cn: all_cn){
-//        std::string root_path = getParentModule()->getName();
-//        cModule* m = getModuleByPath((root_path + "." + cn + ".work_gen").c_str());
-//        WorkGenerator* gen = check_and_cast<WorkGenerator*>(m);
-//        EV << gen->fetchID() << "\n";
-//        s += gen->fetchID();
-//    }
-//    EV << s << "\n";
+    //    int s(0);
+    //    for(auto cn: all_cn){
+    //        std::string root_path = getParentModule()->getName();
+    //        cModule* m = getModuleByPath((root_path + "." + cn + ".work_gen").c_str());
+    //        WorkGenerator* gen = check_and_cast<WorkGenerator*>(m);
+    //        EV << gen->fetchID() << "\n";
+    //        s += gen->fetchID();
+    //    }
+    //    EV << s << "\n";
 }
 
 void Sink::findPathCNtoCN(std::string cn_src, std::string cn_tar, std::string mid, std::vector<std::string>& path) {
-    auto sw_name = mid.substr(0,5);
-    if(sw_name=="edge[" || sw_name=="aggr[" || sw_name=="core["){
-        if(std::find(path.begin(), path.end(), mid) != path.end()){
-            return;
-        }
-    }
+    size_t index_pos = mid.find('[');
+    std::string comp_name = mid.substr(0,index_pos);
 
     path.push_back(mid);
-
+    auto path_size = path.size();
     if(mid == cn_tar){
-        if(checkPath(path))
+        if(checkPath(path)){
             path_cn_cn.push_back(path);
+            auto rev_path = path;
+            std::reverse_copy(path.begin(), path.end(), rev_path.begin());
+            path_cn_cn.push_back(rev_path);
+        }
         path.pop_back();
         return;
     }
-    if(path.size()>15 ||
-            (mid.substr(0,2)=="cn" && path.size()>1 && (mid!=cn_tar)) ||
-            mid.substr(0,4)=="sink" ||
-            mid.substr(0,3)=="oss"){
+
+    if(path_size>15 ||
+            strcmp(comp_name.c_str(), "sink") == 0 ||
+            strcmp(comp_name.c_str(), "oss") == 0){
         path.pop_back();
         return;
     }
+
+    if(strcmp(comp_name.c_str(), "cn") == 0){
+         if(path_size > 1){ // if passed by line above "if(mid == cn_tar)" that means other CN involved!
+             path.pop_back();
+             return;
+         }
+     }else if(strcmp(comp_name.c_str(), "inif_edge_cn") == 0){
+         if(path_size!=2 && path_size!=6 && path_size!=10 && path_size!=14){
+             path.pop_back();
+             return;
+         }
+     }else if(strcmp(comp_name.c_str(), "edge_connect") == 0){
+         if(path_size!=3 && path_size!=5 && path_size!=9 && path_size!=13){
+             path.pop_back();
+             return;
+         }
+     }else if(strcmp(comp_name.c_str(), "edge") == 0){
+         if(path_size!=4 && path_size!=8 && path_size!=12){
+             path.pop_back();
+             return;
+         }
+     }else if(strcmp(comp_name.c_str(), "inif_aggr_edge") == 0){
+         if(path_size!=5 && path_size!=7 && path_size!=11){
+             path.pop_back();
+             return;
+         }
+     }else if(strcmp(comp_name.c_str(), "aggr") == 0){
+         if(path_size!=6 && path_size!=10){
+             path.pop_back();
+             return;
+         }
+     }else if(strcmp(comp_name.c_str(), "inif_core_aggr") == 0){
+         if(path_size!=7 && path_size!=9){
+             path.pop_back();
+             return;
+         }
+     }else if(strcmp(comp_name.c_str(), "core") == 0){
+         if(path_size!=8){
+             path.pop_back();
+             return;
+         }
+     }else{
+         cRuntimeError("Unknown module name!\n");
+     }
 
     for(auto new_src:system_layout[mid]){
         findPathCNtoCN(cn_src, cn_tar, new_src.first, path);
@@ -145,27 +186,69 @@ void Sink::findPathCNtoCN(std::string cn_src, std::string cn_tar, std::string mi
 }
 
 void Sink::findPathCNtoOSS(std::string cn, std::string oss, std::string mid, std::vector<std::string>& path) {
-    auto sw_name = mid.substr(0,5);
-    if(sw_name=="edge[" || sw_name=="aggr[" || sw_name=="core["){
-        if(std::find(path.begin(), path.end(), mid) != path.end()){
-            return;
-        }
-    }
+    size_t index_pos = mid.find('[');
+    std::string comp_name = mid.substr(0,index_pos);
 
     path.push_back(mid);
-
+    auto path_size = path.size();
     if(mid == oss){
-        if(checkPath(path))
+        if(checkPath(path)){
             path_cn_oss.push_back(path);
+            auto rev_path = path;
+            std::reverse_copy(path.begin(), path.end(), rev_path.begin());
+            path_cn_oss.push_back(rev_path);
+        }
         path.pop_back();
         return;
     }
-    if(path.size()>15 ||
-            (mid.substr(0,2)=="cn" && path.size()>1) ||
-            mid.substr(0,3)=="oss" ||
-            mid.substr(0,4)=="sink"){
+
+    if(path_size>15 || strcmp(comp_name.c_str(), "sink")==0 || strcmp(comp_name.c_str(), "oss")==0){
         path.pop_back();
         return;
+    }
+
+    if(strcmp(comp_name.c_str(), "cn") == 0){
+        if(path_size > 1){ // CN can only be put at start position
+            path.pop_back();
+            return;
+        }
+    }else if(strcmp(comp_name.c_str(), "inif_edge_cn") == 0){
+        if(path_size!=2 && path_size!=6 && path_size!=10 && path_size!=14){
+            path.pop_back();
+            return;
+        }
+    }else if(strcmp(comp_name.c_str(), "edge_connect") == 0){
+        if(path_size!=3 && path_size!=5 && path_size!=9 && path_size!=13){
+            path.pop_back();
+            return;
+        }
+    }else if(strcmp(comp_name.c_str(), "edge") == 0){
+        if(path_size!=4 && path_size!=8 && path_size!=12){
+            path.pop_back();
+            return;
+        }
+    }else if(strcmp(comp_name.c_str(), "inif_aggr_edge") == 0){
+        if(path_size!=5 && path_size!=7 && path_size!=11){
+            path.pop_back();
+            return;
+        }
+    }else if(strcmp(comp_name.c_str(), "aggr") == 0){
+        if(path_size!=6 && path_size!=10){
+            path.pop_back();
+            return;
+        }
+    }else if(strcmp(comp_name.c_str(), "inif_core_aggr") == 0){
+        if(path_size!=7 && path_size!=9){
+            path.pop_back();
+            return;
+        }
+    }else if(strcmp(comp_name.c_str(), "core") == 0){
+        if(path_size!=8){
+            path.pop_back();
+            return;
+        }
+    }else{
+        cRuntimeError("Unknown module name!\n");
     }
 
     for(auto new_src:system_layout[mid]){
@@ -176,9 +259,9 @@ void Sink::findPathCNtoOSS(std::string cn, std::string oss, std::string mid, std
 }
 
 bool Sink::checkPath(const std::vector<std::string> &path) {
-    if(path.size() <= 6) return false;
-
-    std::map<std::string, int> switch_count;
+    if(path.size()<7 || path.size()>15 || path.size()%2==0) return false;
+    return true;
+   /* std::map<std::string, int> switch_count;
     for(auto a:path){
         auto sw_name = a.substr(0,5);
         if(sw_name=="edge[" || sw_name=="aggr[" || sw_name=="core["){
@@ -188,7 +271,8 @@ bool Sink::checkPath(const std::vector<std::string> &path) {
             }
         }
     }
-    return switch_count.size();
+
+    return switch_count.size();*/
 }
 
 void Sink::generateShortPaths(std::vector<std::vector<std::string>>& avail_paths) {

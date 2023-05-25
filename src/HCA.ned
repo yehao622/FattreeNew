@@ -21,8 +21,7 @@ network HCA
 {
     @display("i=device/card;bgb=348,209");
     gates:
-        input in;
-        output out;
+        inout port[];
     submodules:
         hcaBuffer: sramBuffer {
             @display("p=217,94");
@@ -31,7 +30,6 @@ network HCA
             @display("p=98,94");
         }
     connections:
-		in --> hca_payload.in++;
+		port++ <--> hca_payload.port++;
 		hca_payload.port++ <--> hcaBuffer.port++;
-		hca_payload.out++ --> out;
 }

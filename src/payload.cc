@@ -44,14 +44,14 @@ void Payload::handleMessage(cMessage *msg)
 
     if(strcmp(getName(), "payloadOST") == 0){
         if(req->getFinished())
-            send(req, "out", getGateToExit());
+            toModuleName(req, getParentModule()->getName());
         else
             toModuleName(req, "flashBuffer");
     }
 
     else if(strcmp(getName(), "hca_payload")==0 || strcmp(getName(), "hba_payload") == 0){
         if(strcmp(from_module_name.c_str(), "hcaBuffer")==0 || strcmp(from_module_name.c_str(), "hbaBuffer")==0){
-            send(req, "out", getGateToExit());
+            toModuleName(req, getParentModule()->getName());
         }else{
             auto total_size(req->getByteLength());
             if(strcmp(getName(), "hca_payload") == 0){
@@ -63,23 +63,26 @@ void Payload::handleMessage(cMessage *msg)
     }
 
     else if(strcmp(getName(), "oss_in_payload") == 0){
-        send(req, "out", getGateToExit());
-    }else if(strcmp(getName(), "oss_out_payload") == 0){
-        popPath(req, 'b');
-        send(req, "out", getGateToExit());
+        if(!req->getFinished()){
+            toModuleName(req, "oss_hub_mem_hca");
+        }else{
+            popPath(req, 'b');
+            toModuleName(req, getParentModule()->getName());
+        }
     }else if(strcmp(getName(), "oss_hub_mem_hca") == 0){
-        if(strcmp(from_module_name.c_str(), "oss_in_payload")==0 || strcmp(from_module_name.c_str(), "oss_memory")==0){
+        if(strcmp(from_module_name.c_str(), "oss_in_payload")==0 ||
+                strcmp(req->getSenderModule()->getParentModule()->getName(), "pci")==0){
             toModuleName(req, "hca");
         }else if(strcmp(from_module_name.c_str(), "hca_payload") == 0){ // "from_module_name" refers to the simple module name, not the network module name
             if(!req->getFinished()){
                 if(req->getWork_type() == 'r')
-                    toModuleName(req, "oss_memory");
+                    toModuleName(req, "pci");
                 else if(req->getWork_type() == 'w')
                     collectFromOSTs(req);
                 else
                     cRuntimeError("Wrong work type!\n");
             }else{
-                toModuleName(req, "oss_out_payload");
+                toModuleName(req, "oss_in_payload");
             }
         }
     }else if(strcmp(getName(), "oss_hub_mem_hba") == 0){
@@ -91,7 +94,7 @@ void Payload::handleMessage(cMessage *msg)
             }else{
                 sendOstByStripe(req);
             }
-        }else if(strcmp(from_module_name.c_str(), "payloadOST") == 0){
+        }else if(strcmp(req->getSenderModule()->getParentModule()->getName(), "sas") == 0){
             toModuleName(req, "oss_hub_mem_hba");
         }
     }
@@ -102,10 +105,12 @@ void Payload::handleMessage(cMessage *msg)
         else
             toModuleName(req, "link_input");
 
-        if(strlen(req->getSendPath()) > 1)
-            popPath(req, 's');
-        else
-            popPath(req, 'b');
+        if(strcmp(getParentModule()->getName(), "pci") && strcmp(getParentModule()->getName(), "sas")){ // if not pci or sas cable
+            if(strlen(req->getSendPath()) > 1)
+                popPath(req, 's');
+            else if(req->getFinished())
+                popPath(req, 'b');
+        }
     }else if(strcmp(getName(), "link_input") == 0){
         if(strcmp(from_module_name.c_str(), "in_flow") == 0)
             toModuleName(req, "link_output");
@@ -124,8 +129,10 @@ void Payload::handleMessage(cMessage *msg)
     }
 
     else if(strcmp(getName(), "cn_memory_hca") == 0){
-        if(strcmp(from_module_name.c_str(), "cn_memory")==0 || strcmp(from_module_name.c_str(), "edge_connect")==0){
-            if(strcmp(from_module_name.c_str(), "cn_memory")==0 && req->getWork_type()=='r'){
+        if(strcmp(req->getSenderModule()->getParentModule()->getName(), "pci")==0 ||
+                strcmp(from_module_name.c_str(), "in_flow")==0 ||
+                strcmp(from_module_name.c_str(), "out_flow")==0){
+            if(strcmp(req->getSenderModule()->getParentModule()->getName(), "pci")==0 && req->getWork_type()=='r'){
                 work_arrive_status[req->getSrc_addr()][req->getMaster_id()][req->getId()] = 0;
             }
             toModuleName(req, "hca");
@@ -142,31 +149,29 @@ void Payload::handleMessage(cMessage *msg)
     }
 
     else if(strcmp(getName(), "edge_connect") == 0){
-        if(strcmp(from_module_name.c_str(), "cn_memory_hca") == 0){
-            if(!req->getFinished()){
-                toModuleName(req, popPath(req, 's'));
-            }else{
-                toModuleName(req, "sink[0]");
-            }
-        }else if(strcmp(from_module_name.c_str(), "out_flow") == 0){
-            if(!req->getFinished()){
+        if(strlen(req->getSendPath()) > 1){
+            if(strcmp(from_module_name.c_str(), "edge") == 0){
                 if(req->getWork_type() == 'w'){ // write request return to sink[1], without returnning to CN
                     work_arrive_status[req->getSrc_addr()][req->getMaster_id()][req->getId()] = 0;
                 }
-
-                toModuleName(req, req->getDes_addr());
-            }else{
-                toModuleName(req, req->getSrc_addr());
             }
-        }else if(strcmp(from_module_name.c_str(), "oss_out_payload") == 0){
+            toModuleName(req, popPath(req, 's'));
+        }else if(strlen(req->getBackPath()) > 1){
             if(req->getWork_type() == 'r')
                 toModuleName(req, popPath(req, 'b'));
-            else{
+            else if(req->getWork_type() == 'w')
                 collectFromOSTs(req);
-            }
         }else{
-            cRuntimeError("Please specify routing rule at %s\n", getName());
+            toModuleName(req, "sink[0]");
         }
+
+//        if(strcmp(from_module_name.c_str(), "edge") == 0){
+//            if(strlen(req->getSendPath()) > 1){
+//
+//            }
+//        }else{
+//            cRuntimeError("Please specify routing rule at %s\n", getName());
+//        }
     }
 }
 
@@ -228,7 +233,12 @@ void Payload::collectFromOSTs(Request* req) {
             req->setFrag_size(req->getData_size());
 
             if(strcmp(getParentModule()->getName(), "oss") == 0){
-                toModuleName(req, "oss_memory");
+                if(strcmp(getName(), "oss_hub_mem_hca") == 0){
+                    req->setByteLength(req->getData_size());
+                    toModuleName(req, "pci");
+                }else if(strcmp(getName(), "oss_hub_hba_ost") == 0){ EV << "write emerged!\n";
+                    toModuleName(req, "oss_memory");
+                }
                 work_arrive_status[req->getSrc_addr()][req->getMaster_id()].erase(req->getId());
             }else if(strcmp(getName(), "edge_connect") == 0){
                 if(checkAllIdArrival(req)){
@@ -249,9 +259,6 @@ void Payload::collectFromOSTs(Request* req) {
 }
 
 const bool Payload::checkAllIdArrival(Request* req) {
-//    if(strcmp(getParentModule()->getName(), "cn"))
-//        cRuntimeError("Only can be called by compute nodes!\n");
-
     bool ans(true);
     // called by request that is a finished and read request in CN, or
     // called by request that is finished and write request
@@ -268,7 +275,7 @@ const bool Payload::checkAllIdArrival(Request* req) {
 
 void Payload::sendOstByStripe(Request* req) {
     short ost_ind = (req->getTarget_ost() + intuniform(0, STRIPE_COUNT-1, par("rng").intValue())) % getParentModule()->getSubmoduleVectorSize("ost");
-    toModuleName(req, ("ost["+std::to_string(ost_ind)+"]").c_str());
+    toModuleName(req, ("sas["+std::to_string(ost_ind)+"]").c_str());
 }
 
 void Payload::segAndSend(Request* req, int64_t total_size, const int seg_size, const char* dest) {

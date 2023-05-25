@@ -18,6 +18,7 @@ package fattreenew;
 import fattreenew.HCA;
 import fattreenew.Buffer;
 import fattreenew.WorkGenerator;
+import fattreenew.PCIe;
 
 network ComputeNode
 {
@@ -25,28 +26,29 @@ network ComputeNode
         @display("i=device/mainframe;bgb=607,343");
         int num_hca = default(4);
     gates:
-        input in;
-        output out;
+        inout port[];
     submodules:
         cn_memory: Buffer {
             @display("p=189,160;i=,#5E5C64");
         }
         hca[num_hca]: HCA {
-            @display("p=422,160");
+            @display("p=490,160");
         }
         work_gen: WorkGenerator {
             @display("p=66,160");
         }
         cn_memory_hca: Payload {
-            @display("p=307,160");
+            @display("p=369,160");
+        }
+        pci: PCIe {
+            @display("p=280,160");
         }
     connections allowunconnected:
-        in --> cn_memory_hca.in++;
+        port++ <--> cn_memory_hca.port++;
         work_gen.port <--> cn_memory.port++;
-        cn_memory.port++ <--> cn_memory_hca.port++;
+        cn_memory.port++ <--> pci.port++;
+        pci.port++ <--> cn_memory_hca.port++;
         for i=0..(num_hca-1) {
-            cn_memory_hca.out++ --> hca[i].in;
-            hca[i].out --> cn_memory_hca.in++;
+            cn_memory_hca.port++ <--> hca[i].port++;
         }
-        cn_memory_hca.out++ --> out;
 }

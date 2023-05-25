@@ -18,6 +18,7 @@ package fattreenew;
 import fattreenew.OST;
 import fattreenew.HCA;
 import fattreenew.HBA;
+import fattreenew.PCIe;
 import fattreenew.simulations.dramBuffer;
 import ned.IdealChannel;
 
@@ -30,15 +31,14 @@ network OSS
         int num_hbas = default(2);
         int num_osts = default(10);
     gates:
-        input in;
-        output out;
+        inout port[];
     submodules:
         oss_memory: dramBuffer {
             @display("p=223,191");
         }
 
         ost[num_osts]: OST {
-            @display("p=338,372");
+            @display("p=338,406");
         }
 
         hca[num_hcas]: HCA {
@@ -53,10 +53,6 @@ network OSS
             @display("p=58,81");
         }
 
-        oss_out_payload: Payload {
-            @display("p=68,191");
-        }
-
         oss_hub_mem_hca: Payload {
             @display("p=223,81");
         }
@@ -68,17 +64,22 @@ network OSS
         oss_hub_hba_ost: Payload {
             @display("p=338,290");
         }
-
+        pci: PCIe {
+            @display("p=223,138");
+        }
+        sas[num_osts]: SAS {
+            @display("p=338,352");
+        }
     connections:
-        in --> oss_in_payload.in++;
+        port++ <--> oss_in_payload.port++;
 
-        oss_in_payload.out++ --> oss_hub_mem_hca.in++;
-        oss_memory.port++ <--> oss_hub_mem_hca.port++;
+        oss_in_payload.port++ <--> oss_hub_mem_hca.port++;
+        oss_hub_mem_hca.port++ <--> pci.port++;
+        oss_memory.port++ <--> pci.port++;
         oss_memory.port++ <--> oss_hub_mem_hba.port++;
 
         for i=0..(num_hcas-1) {
-            oss_hub_mem_hca.out++ --> hca[i].in;
-            hca[i].out --> oss_hub_mem_hca.in++;
+            oss_hub_mem_hca.port++ <--> hca[i].port++;
         }
 
         for i=0..(num_hbas-1) {
@@ -87,12 +88,10 @@ network OSS
         }
 
         for i=0..(num_osts-1) {
-            oss_hub_hba_ost.out++ --> ost[i].in;
-            ost[i].out --> oss_hub_hba_ost.in++;
+            oss_hub_hba_ost.port++ <--> sas[i].port++;
+            sas[i].port++ <--> ost[i].port++;
         }
 
-        oss_hub_mem_hca.out++ --> oss_out_payload.in++;
-        oss_out_payload.out++ --> out;
         oss_hub_hba_ost.out++ --> oss_hub_mem_hba.in++;
         oss_hub_hba_ost.port++ <--> oss_memory.port++;
 }
