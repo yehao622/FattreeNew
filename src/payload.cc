@@ -129,23 +129,61 @@ void Payload::handleMessage(cMessage *msg)
     }
 
     else if(strcmp(getName(), "cn_memory_hca") == 0){
-        if(strcmp(req->getSenderModule()->getParentModule()->getName(), "pci")==0 ||
-                strcmp(from_module_name.c_str(), "in_flow")==0 ||
-                strcmp(from_module_name.c_str(), "out_flow")==0){
-            if(strcmp(req->getSenderModule()->getParentModule()->getName(), "pci")==0 && req->getWork_type()=='r'){
-                work_arrive_status[req->getSrc_addr()][req->getMaster_id()][req->getId()] = 0;
+//        if(std::regex_match(req->getDes_addr(), std::regex("oss\\[[0-9]+\\]"))){
+//            if(strcmp(req->getSenderModule()->getParentModule()->getName(), "pci")==0 ||
+//                    strcmp(from_module_name.c_str(), "in_flow")==0 ||
+//                    strcmp(from_module_name.c_str(), "out_flow")==0){
+//                if(strcmp(req->getSenderModule()->getParentModule()->getName(), "pci")==0 && req->getWork_type()=='r'){
+//                    work_arrive_status[req->getSrc_addr()][req->getMaster_id()][req->getId()] = 0;
+//                }
+//                toModuleName(req, "hca");
+//            }else if(strcmp(from_module_name.c_str(), "hca_payload")==0) {
+//                if(!req->getFinished()){
+//                    popPath(req, 's');
+//                    toModuleName(req, "cn");
+//                }else{
+//                    collectFromOSTs(req);
+//                }
+//            }else{
+//                cRuntimeError("Please specify routing rules at %s\n", getName());
+//            }
+//        }else if(std::regex_match(req->getDes_addr(), std::regex("cn\\[[0-9]+\\]"))){
+            if(strcmp(req->getDes_addr(), getParentModule()->getFullName())) { // if start from original CN
+                if(!req->getFinished()) { //send message out
+                    if(strcmp(req->getSenderModule()->getParentModule()->getName(), "pci") == 0){
+                        toModuleName(req, "hca");
+                    }else if(strcmp(req->getSenderModule()->getParentModule()->getName(), "hca") == 0){
+                        popPath(req, 's');
+                        toModuleName(req, "cn");
+                    }
+                }else{ // back to original CN (read request only)
+                    if(strcmp(req->getSenderModule()->getParentModule()->getName(), "inif_edge_cn") == 0){
+                        toModuleName(req, "hca");
+                    }else if(strcmp(req->getSenderModule()->getParentModule()->getName(), "hca") == 0){
+                        toModuleName(req, "pci");
+                    }else if(strcmp(req->getSenderModule()->getParentModule()->getName(), "pci") == 0){
+                        collectFromOSTs(req);
+                    }
+                }
+            }else{ // arrive at target CN
+                if(strcmp(req->getSenderModule()->getParentModule()->getName(), "inif_edge_cn") == 0){
+                    toModuleName(req, "hca");
+                }else if(strcmp(req->getSenderModule()->getParentModule()->getName(), "hca") == 0){
+                    if(!req->getFinished()){
+                        toModuleName(req, "pci");
+                    }else{
+                        popPath(req, 'b');
+                        if(req->getWork_type() == 'r')
+                            toModuleName(req, "cn");
+                        else{
+                            collectFromOSTs(req);
+                        }
+                    }
+                }else if(strcmp(req->getSenderModule()->getParentModule()->getName(), "pci") == 0){
+                    toModuleName(req, "hca");
+                }
             }
-            toModuleName(req, "hca");
-        }else if(strcmp(from_module_name.c_str(), "hca_payload")==0) {
-            if(!req->getFinished()){
-                popPath(req, 's');
-                toModuleName(req, "cn");
-            }else{
-                collectFromOSTs(req);
-            }
-        }else{
-            cRuntimeError("Please specify routing rules at %s\n", getName());
-        }
+//        }
     }
 
     else if(strcmp(getName(), "edge_connect") == 0){
@@ -157,21 +195,13 @@ void Payload::handleMessage(cMessage *msg)
             }
             toModuleName(req, popPath(req, 's'));
         }else if(strlen(req->getBackPath()) > 1){
-            if(req->getWork_type() == 'r')
+            if(req->getWork_type() == 'r'){
                 toModuleName(req, popPath(req, 'b'));
-            else if(req->getWork_type() == 'w')
+            }else if(req->getWork_type() == 'w')
                 collectFromOSTs(req);
         }else{
             toModuleName(req, "sink[0]");
         }
-
-//        if(strcmp(from_module_name.c_str(), "edge") == 0){
-//            if(strlen(req->getSendPath()) > 1){
-//
-//            }
-//        }else{
-//            cRuntimeError("Please specify routing rule at %s\n", getName());
-//        }
     }
 }
 
@@ -202,9 +232,10 @@ void Payload::toModuleName(Request* req, const std::string m_name) {
 void Payload::collectFromOSTs(Request* req) {
     // toModuleName(req, "oss_memory");
     if(req->getWork_type() == 'r'){
-        work_arrive_status[req->getSrc_addr()][req->getMaster_id()][req->getId()] += req->getByteLength();
+        work_arrive_status[req->getSrc_addr()][req->getMaster_id()][req->getId()] += req->getFrag_size();
         if(work_arrive_status[req->getSrc_addr()][req->getMaster_id()][req->getId()] == req->getData_size()){
-            req->setByteLength(req->getData_size());
+            if(strcmp(getParentModule()->getName(), "oss") == 0)
+                req->setByteLength(req->getData_size());
             req->setFrag_size(req->getData_size());
 
             if(strcmp(getParentModule()->getName(), "oss") == 0){
@@ -217,7 +248,7 @@ void Payload::collectFromOSTs(Request* req) {
                         sum_data_size += item.second;
                     req->setData_size(sum_data_size);
                     req->setFrag_size(sum_data_size);
-                    req->setByteLength(sum_data_size);
+                    //req->setByteLength(sum_data_size);
                     toModuleName(req, "cn");
                     work_arrive_status[req->getSrc_addr()].erase(req->getMaster_id());
                 }
@@ -248,6 +279,17 @@ void Payload::collectFromOSTs(Request* req) {
                     req->setData_size(sum_data_size);
                     req->setFrag_size(sum_data_size);
                     toModuleName(req, "sink[1]");
+                    work_arrive_status[req->getSrc_addr()].erase(req->getMaster_id());
+                }
+            }else if(strcmp(getParentModule()->getName(), "cn") == 0){
+                if(checkAllIdArrival(req)){
+                    int64_t sum_data_size(0);
+                    for(auto item : work_arrive_status[req->getSrc_addr()][req->getMaster_id()])
+                        sum_data_size += item.second;
+                    req->setData_size(sum_data_size);
+                    req->setFrag_size(sum_data_size);
+                    //req->setByteLength(sum_data_size);
+                    toModuleName(req, "cn");
                     work_arrive_status[req->getSrc_addr()].erase(req->getMaster_id());
                 }
             }

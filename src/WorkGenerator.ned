@@ -26,6 +26,7 @@ simple WorkGenerator
         int rng = default(0);
         double data_size = default(1.0);
         double read_probability = default(0.5);
+        double cn_probability = default(0.0);
         double sendInterval @unit(s) = default(1e-3s);
     gates:
         inout port;

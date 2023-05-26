@@ -139,6 +139,16 @@ void Buffer::handleMessage(cMessage *msg)
                 }
             }else{
                 avail_buffer_size += (double)req->getByteLength() / MB;
+                if(req->getFinished() && strcmp(req->getSrc_addr(), getParentModule()->getFullName())==0){ // read from target (write has been sent to sink module)
+                    req->setByteLength(0);
+                }else if(!req->getFinished() && strcmp(req->getDes_addr(), getParentModule()->getFullName())==0){ // r/w on target cn
+                    req->setFinished(true);
+                    if(req->getWork_type() == 'r'){
+                        req->setByteLength(req->getFrag_size());
+                    }else{
+                        req->setByteLength(0);
+                    }
+                }
                 send(req, "port$o", getGateTo("port$o", "pci"));
                 sendFromBuffer();
             }

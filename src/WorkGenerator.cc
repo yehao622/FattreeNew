@@ -47,16 +47,18 @@ void WorkGenerator::initMsg(Request* req) {
     req->setSrc_addr(getParentModule()->getFullName());
 
     std::string des;
-
-    des = all_cn[intuniform(0, all_cn.size()-1, par("rng").intValue())];
-    while(strcmp(des.c_str(), getParentModule()->getFullName()) == 0) // not sent msg to itself
+    double to_cn_prob(uniform(0, 1.0, par("rng").intValue()));
+    if(to_cn_prob < par("cn_probability").doubleValue()){
         des = all_cn[intuniform(0, all_cn.size()-1, par("rng").intValue())];
-
-    // if set request is r/w on OSTs
-//    des = all_oss[intuniform(0, all_oss.size()-1, par("rng").intValue())];
-//    cModule* cm = findModuleByPath(("Fattreenew." + des).c_str());
-//    int num_ost = cm->getSubmoduleVectorSize("ost");
-//    req->setTarget_ost(intuniform(0, num_ost-1, par("rng").intValue()));
+        while(strcmp(des.c_str(), getParentModule()->getFullName()) == 0) // not sent msg to itself
+            des = all_cn[intuniform(0, all_cn.size()-1, par("rng").intValue())];
+    }else{
+        // if set request is r/w on OSTs
+        des = all_oss[intuniform(0, all_oss.size()-1, par("rng").intValue())];
+        cModule* cm = findModuleByPath(("Fattreenew." + des).c_str());
+        int num_ost = cm->getSubmoduleVectorSize("ost");
+        req->setTarget_ost(intuniform(0, num_ost-1, par("rng").intValue()));
+    }
 
     req->setDes_addr(des.c_str());
     auto avail_paths = all_paths[req->getSrc_addr()][req->getDes_addr()];
