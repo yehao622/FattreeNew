@@ -1,0 +1,183 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: hpc-postgres
+    environment:
+      POSTGRES_DB: hpc_simulation
+      POSTGRES_USER: hpc_user
+      POSTGRES_PASSWORD: hpc_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./api-gateway/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    networks:
+      - hpc-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hpc_user -d hpc_simulation"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and job queue
+  redis:
+    image: redis:7-alpine
+    container_name: hpc-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - hpc-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: hpc-api-gateway
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://hpc_user:hpc_password@postgres:5432/hpc_simulation
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      CORS_ORIGIN: http://localhost:3000,http://localhost:3001
+      LOG_LEVEL: debug
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./api-gateway/src:/app/src
+      - ./api-gateway/package.json:/app/package.json
+      - ./api-gateway/tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+    networks:
+      - hpc-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Simulation Worker (OMNeT++ Container)
+  simulation-worker:
+    build:
+      context: ./simulation-worker
+      dockerfile: Dockerfile
+    #container_name: hpc-simulation-worker
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://hpc_user:hpc_password@postgres:5432/hpc_simulation
+      WORKER_CONCURRENCY: 2
+      LOG_LEVEL: info
+    volumes:
+      - ./simulation-worker/src:/app/src
+      - ./legacy-simulator:/app/legacy-simulator
+      - simulation_results:/app/results
+    networks:
+      - hpc-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+
+  # pgAdmin for database management (development only)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: hpc-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@hpc-simulation.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - hpc-network
+    depends_on:
+      - postgres
+    profiles:
+      - development
+
+  # Redis Commander for Redis management (development only)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: hpc-redis-commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    networks:
+      - hpc-network
+    depends_on:
+      - redis
+    profiles:
+      - development
+
+  # Prometheus for metrics (monitoring)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: hpc-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - hpc-network
+    profiles:
+      - monitoring
+
+  # Grafana for visualization (monitoring)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: hpc-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - hpc-network
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:
+  grafana_data:
+  prometheus_data:
+  simulation_results:
+
+networks:
+  hpc-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
