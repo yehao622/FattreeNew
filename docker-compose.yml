@@ -9,11 +9,14 @@ services:
       POSTGRES_DB: hpc_simulation
       POSTGRES_USER: hpc_user
       POSTGRES_PASSWORD: hpc_password
+      # Ensure postgres user exists for admin tasks
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./api-gateway/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      # Fixed: Use init script instead of schema directly
+      - ./api-gateway/database/init.sql:/docker-entrypoint-initdb.d/01-init.sql
     networks:
       - hpc-network
     healthcheck:
@@ -77,7 +80,6 @@ services:
     build:
       context: ./simulation-worker
       dockerfile: Dockerfile
-    #container_name: hpc-simulation-worker
     environment:
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgresql://hpc_user:hpc_password@postgres:5432/hpc_simulation
