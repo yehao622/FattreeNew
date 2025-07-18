@@ -78,8 +78,9 @@ services:
   # Simulation Worker (OMNeT++ Container)
   simulation-worker:
     build:
-      context: ./simulation-worker
-      dockerfile: Dockerfile
+      # context: ./simulation-worker
+      context: .
+      dockerfile: simulation-worker/Dockerfile
     environment:
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgresql://hpc_user:hpc_password@postgres:5432/hpc_simulation
