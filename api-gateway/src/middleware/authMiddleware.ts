@@ -1,3 +1,4 @@
+// api-gateway/src/middleware/authMiddleware.ts - FIXED VERSION
 import { Request, Response, NextFunction } from 'express';
 
 // Use require() to bypass TypeScript JWT type issues
@@ -48,34 +49,38 @@ export const authenticateToken = async (
       return;
     }
 
-    const decoded: any = jwt.verify(token, jwtSecret);
+    try {
+      const decoded: any = jwt.verify(token, jwtSecret);
 
-    req.user = {
-      userId: decoded.userId,
-      email: decoded.email
-    };
+      req.user = {
+        userId: decoded.userId,
+        email: decoded.email
+      };
 
-    console.log(`🔓 Authenticated user: ${decoded.email} (ID: ${decoded.userId})`);
-    
-    next();
+      console.log(`🔓 Authenticated user: ${decoded.email} (ID: ${decoded.userId})`);
+      next();
+
+    } catch (jwtError: any) {
+      if (jwtError.name === 'TokenExpiredError') {
+        res.status(401).json({
+          error: 'Token expired',
+          message: 'Access token has expired. Please login again.'
+        });
+        return;
+      }
+
+      if (jwtError.name === 'JsonWebTokenError') {
+        res.status(401).json({
+          error: 'Invalid token',
+          message: 'Access token is invalid'
+        });
+        return;
+      }
+
+      throw jwtError;
+    }
 
   } catch (error: any) {
-    if (error.name === 'TokenExpiredError') {
-      res.status(401).json({
-        error: 'Token expired',
-        message: 'Access token has expired. Please login again.'
-      });
-      return;
-    }
-
-    if (error.name === 'JsonWebTokenError') {
-      res.status(401).json({
-        error: 'Invalid token',
-        message: 'Access token is invalid'
-      });
-      return;
-    }
-
     console.error('💥 Authentication middleware error:', error);
     res.status(500).json({
       error: 'Internal server error',
@@ -84,7 +89,7 @@ export const authenticateToken = async (
   }
 };
 
-// Rate limiting middleware for auth endpoints - REQUIRED EXPORT
+// Rate limiting middleware for auth endpoints
 export const authRateLimit = (req: Request, res: Response, next: NextFunction) => {
   const ip = req.ip || req.connection.remoteAddress || 'unknown';
   
