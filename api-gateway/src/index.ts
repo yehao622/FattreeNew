@@ -1,4 +1,6 @@
-// api-gateway/src/index.ts
+// Complete fix for api-gateway/src/index.ts
+// Replace your entire index.ts with this corrected version
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -233,47 +235,9 @@ app.get('/api/docs', (req, res) => {
   });
 });
 
-// Import and setup routes with error handling
-const setupRoutes = async () => {
-  try {
-    const authRoutes = await import('./routes/authRoutes');
-    const simulationRoutes = await import('./routes/simulationRoutes');
-    
-    app.use('/api/v1/auth', authRoutes.default);
-    app.use('/api/v1/simulations', simulationRoutes.default);
-    
-    console.log('✅ Routes loaded successfully');
-  } catch (error: any) {
-    console.warn('⚠️ Routes not available, running in basic mode:', error.message);
-    
-    // Add basic fallback routes
-    app.post('/api/v1/auth/register', (req, res) => {
-      res.status(503).json({ 
-        error: 'Service temporarily unavailable',
-        message: 'Authentication service is starting up'
-      });
-    });
-    
-    app.post('/api/v1/auth/login', (req, res) => {
-      res.status(503).json({ 
-        error: 'Service temporarily unavailable',
-        message: 'Authentication service is starting up'
-      });
-    });
-    
-    app.get('/api/v1/simulations', (req, res) => {
-      res.status(503).json({ 
-        error: 'Service temporarily unavailable',
-        message: 'Simulation service is starting up'
-      });
-    });
-  }
-};
-
-// API status endpoint - Fixed type issues
+// API status endpoint
 app.get('/api/v1/status', async (req, res) => {
   try {
-    // Get system statistics
     const memoryUsage = process.memoryUsage();
     const stats = {
       timestamp: new Date().toISOString(),
@@ -285,9 +249,8 @@ app.get('/api/v1/status', async (req, res) => {
         external: Math.round(memoryUsage.external / 1024 / 1024) + ' MB'
       },
       environment: process.env.NODE_ENV || 'development',
-      queueLength: 'unknown' // Simplified to avoid Redis type issues
+      queueLength: 'unknown'
     };
-
     res.json(stats);
   } catch (error) {
     res.status(500).json({
@@ -297,7 +260,77 @@ app.get('/api/v1/status', async (req, res) => {
   }
 });
 
-// 404 handler for API routes
+// CRITICAL FIX: Load and mount routes SYNCHRONOUSLY
+const setupRoutes = () => {
+  try {
+    console.log('📦 Loading routes...');
+    
+    // Import routes at runtime (synchronous)
+    const authRoutes = require('./routes/authRoutes');
+    const simulationRoutes = require('./routes/simulationRoutes');
+    
+    // Mount the routes
+    app.use('/api/v1/auth', authRoutes.default || authRoutes);
+    app.use('/api/v1/simulations', simulationRoutes.default || simulationRoutes);
+    
+    console.log('✅ Routes loaded and mounted successfully');
+    console.log('🔗 Available routes:');
+    console.log('   POST /api/v1/auth/register');
+    console.log('   POST /api/v1/auth/login');
+    console.log('   GET  /api/v1/auth/profile');
+    console.log('   POST /api/v1/simulations');
+    console.log('   GET  /api/v1/simulations');
+    
+    return true;
+  } catch (error: any) {
+    console.warn('⚠️  Route loading failed:', error.message);
+    console.log('🔧 Creating fallback routes...');
+    
+    // Create fallback routes that return proper errors
+    app.post('/api/v1/auth/register', (req, res) => {
+      res.status(503).json({ 
+        error: 'Service temporarily unavailable',
+        message: 'Authentication service is loading'
+      });
+    });
+    
+    app.post('/api/v1/auth/login', (req, res) => {
+      res.status(503).json({ 
+        error: 'Service temporarily unavailable',
+        message: 'Authentication service is loading'
+      });
+    });
+    
+    app.get('/api/v1/auth/profile', (req, res) => {
+      res.status(503).json({ 
+        error: 'Service temporarily unavailable',
+        message: 'Authentication service is loading'
+      });
+    });
+    
+    app.get('/api/v1/simulations', (req, res) => {
+      res.status(503).json({ 
+        error: 'Service temporarily unavailable',
+        message: 'Simulation service is loading'
+      });
+    });
+    
+    app.post('/api/v1/simulations', (req, res) => {
+      res.status(503).json({ 
+        error: 'Service temporarily unavailable',
+        message: 'Simulation service is loading'
+      });
+    });
+    
+    return false;
+  }
+};
+
+// Load routes BEFORE setting up 404 handlers
+console.log('🚀 Setting up routes...');
+setupRoutes();
+
+// 404 handler for API routes (MUST come after route setup)
 app.use('/api/*', (req, res) => {
   console.log(`❌ 404 - API route not found: ${req.method} ${req.path}`);
   res.status(404).json({ 
@@ -329,7 +362,6 @@ app.use((req, res) => {
 app.use((err: any, req: any, res: any, next: any) => {
   console.error('💥 Server error:', err);
   
-  // Don't leak error details in production
   const isDevelopment = process.env.NODE_ENV !== 'production';
   
   res.status(err.status || 500).json({
@@ -339,56 +371,39 @@ app.use((err: any, req: any, res: any, next: any) => {
   });
 });
 
-// Initialize and start server
-const startServer = async () => {
-  try {
-    // Setup routes
-    await setupRoutes();
+// Start HTTP server
+const server = app.listen(port, '0.0.0.0', () => {
+  console.log(`✅ HPC Simulation API running on port ${port}`);
+  console.log(`📚 Health check: http://localhost:${port}/api/health`);
+  console.log(`🏠 Home: http://localhost:${port}/`);
+  console.log(`📖 API Docs: http://localhost:${port}/api/docs`);
+  console.log(`🔐 Auth endpoints: http://localhost:${port}/api/v1/auth/*`);
+  console.log(`🧪 Simulation endpoints: http://localhost:${port}/api/v1/simulations/*`);
+});
 
-    // Start HTTP server
-    const server = app.listen(port, '0.0.0.0', () => {
-      console.log(`✅ HPC Simulation API running on port ${port}`);
-      console.log(`📚 Health check: http://localhost:${port}/api/health`);
-      console.log(`🏠 Home: http://localhost:${port}/`);
-      console.log(`📖 API Docs: http://localhost:${port}/api/docs`);
-      console.log(`🔐 Auth endpoints: http://localhost:${port}/api/v1/auth/*`);
-      console.log(`🧪 Simulation endpoints: http://localhost:${port}/api/v1/simulations/*`);
-    });
-
-    // Graceful shutdown
-    const gracefulShutdown = async (signal: string) => {
-      console.log(`🛑 ${signal} received, shutting down gracefully`);
-      
-      server.close(async () => {
-        console.log('📡 HTTP server closed');
-        
-        // Close database connections
-        if (dbPool) {
-          await dbPool.end();
-          console.log('🗄️ Database pool closed');
-        }
-        
-        console.log('✅ Graceful shutdown completed');
-        process.exit(0);
-      });
-      
-      // Force close after 10 seconds
-      setTimeout(() => {
-        console.error('💥 Could not close connections in time, forcefully shutting down');
-        process.exit(1);
-      }, 10000);
-    };
-
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-  } catch (error) {
-    console.error('💥 Failed to start server:', error);
+// Graceful shutdown
+const gracefulShutdown = async (signal: string) => {
+  console.log(`🛑 ${signal} received, shutting down gracefully`);
+  
+  server.close(async () => {
+    console.log('📡 HTTP server closed');
+    
+    if (dbPool) {
+      await dbPool.end();
+      console.log('🗄️ Database pool closed');
+    }
+    
+    console.log('✅ Graceful shutdown completed');
+    process.exit(0);
+  });
+  
+  setTimeout(() => {
+    console.error('💥 Could not close connections in time, forcefully shutting down');
     process.exit(1);
-  }
+  }, 10000);
 };
 
-// Start the server
-startServer();
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 export default app;
