@@ -8,6 +8,7 @@ import { Pool } from 'pg';
 
 // Import authentication components
 import * as authController from './controllers/authController';
+import * as simulationController from './controllers/simulationController';
 import { authenticateToken, authRateLimit } from './middleware/authMiddleware';
 
 const app = express();
@@ -367,7 +368,7 @@ app.get('/api/v1/auth/test', (req, res) => {
 // Simulation Routes - Direct Implementation (all require auth)
 app.use('/api/v1/simulations', authenticateToken);
 
-app.get('/api/v1/simulations/templates/topologies', (req, res) => {
+app.get('/api/v1/simulations/templates/topologies', simulationController.getTopologyTemplates, (req, res) => {
   console.log('📋 Topology templates request');
   res.status(503).json({
     error: 'Service temporarily unavailable',
@@ -375,7 +376,7 @@ app.get('/api/v1/simulations/templates/topologies', (req, res) => {
   });
 });
 
-app.get('/api/v1/simulations/templates/workloads', (req, res) => {
+app.get('/api/v1/simulations/templates/workloads', simulationController.getWorkloadPatterns, (req, res) => {
   console.log('📋 Workload patterns request');
   res.status(503).json({
     error: 'Service temporarily unavailable',
@@ -383,7 +384,7 @@ app.get('/api/v1/simulations/templates/workloads', (req, res) => {
   });
 });
 
-app.post('/api/v1/simulations', (req, res) => {
+app.post('/api/v1/simulations', simulationController.createSimulation, (req, res) => {
   console.log('🚀 Create simulation request from user:', req.user?.userId);
   res.status(503).json({
     error: 'Service temporarily unavailable',
@@ -391,7 +392,7 @@ app.post('/api/v1/simulations', (req, res) => {
   });
 });
 
-app.get('/api/v1/simulations', (req, res) => {
+app.get('/api/v1/simulations', simulationController.getSimulations, (req, res) => {
   console.log('📋 List simulations request from user:', req.user?.userId);
   res.status(503).json({
     error: 'Service temporarily unavailable',
@@ -399,7 +400,7 @@ app.get('/api/v1/simulations', (req, res) => {
   });
 });
 
-app.get('/api/v1/simulations/:id', (req, res) => {
+app.get('/api/v1/simulations/:id', simulationController.getSimulationById, (req, res) => {
   console.log(`🔍 Get simulation ${req.params.id} from user:`, req.user?.userId);
   res.status(503).json({
     error: 'Service temporarily unavailable',
@@ -407,7 +408,7 @@ app.get('/api/v1/simulations/:id', (req, res) => {
   });
 });
 
-app.delete('/api/v1/simulations/:id', (req, res) => {
+app.delete('/api/v1/simulations/:id', simulationController.cancelSimulation, (req, res) => {
   console.log(`🛑 Cancel simulation ${req.params.id} from user:`, req.user?.userId);
   res.status(503).json({
     error: 'Service temporarily unavailable',
@@ -421,6 +422,7 @@ app.get('/api/v1/simulations/test', (req, res) => {
     message: 'Simulation routes are working!',
     timestamp: new Date().toISOString(),
     user: req.user || 'No user authenticated',
+    status: 'Controllers integrated',
     availableRoutes: [
       'GET /api/v1/simulations/templates/topologies',
       'GET /api/v1/simulations/templates/workloads',
