@@ -2,153 +2,264 @@
 
 A scalable, cloud-native platform for running High-Performance Computing network simulations, built on top of OMNeT++ simulation framework.
 
-## 🚀 Project Vision
+## 🚀 Project Status
 
-Transform academic HPC simulation tools into production-ready SaaS platform demonstrating:
-- **Microservices Architecture** with RESTful APIs and GraphQL
-- **Cloud-Native Deployment** on AWS with containerization
-- **Modern DevOps Practices** with CI/CD and Infrastructure as Code
-- **Scalable Data Processing** with PostgreSQL and async job queues
+### ✅ **Session 2 COMPLETE** - Core Platform Ready
+- **Full Authentication System**: JWT-based registration, login, and protected routes
+- **Complete Simulation API**: Job submission, monitoring, and results retrieval
+- **Mock Simulation Engine**: Realistic HPC simulation processing with metrics
+- **Production Infrastructure**: PostgreSQL, Redis, Docker orchestration
+- **Professional Testing**: Comprehensive API validation and end-to-end workflows
+
+### 🎯 **Session 3 PLANNED** - Advanced Features
+- GraphQL API for complex queries and real-time subscriptions
+- WebSocket connections for live job monitoring
+- Enhanced analytics and performance optimization
+- OMNeT++ integration for actual simulations
+
+---
 
 ## 🏗️ Architecture Overview
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Web Client    │────│   API Gateway   │────│ Simulation      │
-│   (React)       │    │  (Node.js +     │    │ Worker          │
-└─────────────────┘    │   GraphQL)      │    │ (Python +       │
+│   API Client    │────│   API Gateway   │────│ Simulation      │
+│  (REST/GraphQL) │    │  (Node.js +     │    │ Worker          │
+└─────────────────┘    │   TypeScript)   │    │ (Python +       │
                        └─────────────────┘    │  OMNeT++)       │
                                 │              └─────────────────┘
                        ┌─────────────────┐               │
                        │   PostgreSQL    │               │
                        │   Database      │───────────────┘
                        └─────────────────┘
+                                │
+                       ┌─────────────────┐
+                       │   Redis Queue   │
+                       │   & Cache       │
+                       └─────────────────┘
 ```
 
 ## 🛠️ Technology Stack
 
 ### Backend Services
-- **API Gateway**: Node.js, Express, GraphQL, TypeScript
-- **Simulation Engine**: Python, OMNeT++, Docker containers
-- **Database**: PostgreSQL with time-series optimizations
-- **Message Queue**: Redis/Celery for async job processing
+- **API Gateway**: Node.js, Express, TypeScript, JWT Authentication
+- **Simulation Engine**: Python async workers with realistic mock processing
+- **Database**: PostgreSQL with comprehensive schema and time-series data
+- **Message Queue**: Redis for async job processing and caching
 
 ### DevOps & Infrastructure  
-- **Containerization**: Docker, Docker Compose
-- **Cloud Platform**: AWS (ECS, RDS, S3, CloudWatch)
-- **CI/CD**: GitHub Actions, automated testing and deployment
-- **Infrastructure as Code**: Terraform
-- **Monitoring**: Prometheus, Grafana
+- **Containerization**: Docker, Docker Compose with health checks
+- **Development**: Hot reload, structured logging, comprehensive testing
+- **Monitoring**: Built-in health endpoints and service status tracking
+- **Documentation**: Interactive API docs at `/api/docs`
 
 ### Development Tools
-- **Build Tools**: Webpack, Babel, ESLint, Prettier
-- **Testing**: Jest, Supertest, pytest
-- **Development**: Docker Compose for local environment
+- **API Testing**: Comprehensive test suite with realistic workflows
+- **Development Environment**: Docker Compose for complete local setup
+- **Code Quality**: TypeScript strict mode, ESLint, proper error handling
 
-## 📊 Original Simulation Capabilities
+---
 
-Built upon a comprehensive OMNeT++ simulator featuring:
-- **Fat-tree Network Topology** with configurable core/aggregation/edge layers
-- **Storage System Modeling** including OSS/OST with realistic I/O patterns  
-- **Multiple Interconnects**: InfiniBand, PCIe, SAS with accurate performance models
-- **Workload Generation**: Configurable read/write patterns for HPC applications
+## 📊 Current Capabilities
 
-## 🎯 Development Roadmap
+### 🔐 **Authentication System**
+- **User Registration**: Secure account creation with validation
+- **JWT Login**: Token-based authentication with password hashing
+- **Protected Routes**: Middleware-based authorization
+- **Profile Management**: User statistics and account information
 
-### Phase 1: Core Platform (Weeks 1-2)
-- [ ] RESTful API design and implementation
-- [ ] Database schema and data models
-- [ ] Basic containerization of simulation engine
-- [ ] Local development environment setup
+### 🚀 **Simulation Management**
+- **Job Submission**: Submit HPC simulation jobs with comprehensive parameters
+- **Real-time Monitoring**: Track job status from submission to completion
+- **Results Retrieval**: Access detailed metrics, logs, and performance data
+- **Template System**: Pre-configured network topologies and workload patterns
 
-### Phase 2: Advanced Features (Weeks 3-4)  
-- [ ] GraphQL API for complex queries
-- [ ] Async job processing with status tracking
-- [ ] Results visualization and analytics
-- [ ] User authentication and authorization
+### 📈 **Analytics & Metrics**
+- **Performance Tracking**: Throughput, latency, and queue length metrics
+- **Time-series Data**: Historical performance analysis
+- **Job Statistics**: User-specific job history and success rates
+- **Structured Logging**: Comprehensive audit trail and debugging info
 
-### Phase 3: Production Deployment (Weeks 5-6)
-- [ ] AWS infrastructure provisioning
-- [ ] CI/CD pipeline implementation  
-- [ ] Monitoring and logging setup
-- [ ] Performance optimization and scaling
+### 🏗️ **Infrastructure**
+- **Multi-service Architecture**: Scalable microservices design
+- **Database Integration**: PostgreSQL with optimized schema
+- **Async Processing**: Redis-based job queue with worker pattern
+- **Health Monitoring**: Service status and dependency tracking
 
-## 🚦 Current Status
-
-🟡 **In Development** - Core platform architecture and API design
-
-## 💼 Professional Skills Demonstrated
-
-This project showcases modern software engineering practices:
-- **Full-Stack Development**: REST/GraphQL APIs, database design, containerization
-- **Cloud Architecture**: AWS services, microservices, scalable infrastructure  
-- **DevOps Practices**: CI/CD, Infrastructure as Code, monitoring
-- **Agile Development**: Feature branches, sprint planning, user stories
-- **Domain Expertise**: HPC systems, network simulation, performance analysis
-
-## 📁 Project Structure
-
-```
-hpc-simulation-platform/
-├── README.md                    # Project overview
-├── docs/                       # Documentation
-│   ├── architecture.md         # System architecture
-│   ├── api-design.md          # API specifications
-│   ├── development-log.md     # Development progress
-│   └── deployment-guide.md    # Deployment instructions
-├── legacy-simulator/          # Original OMNeT++ HPC simulator
-├── api-gateway/              # RESTful API service
-├── simulation-worker/        # Containerized simulation engine
-├── infrastructure/           # Terraform configurations
-├── docker-compose.yml       # Local development environment
-└── .github/                 # CI/CD and issue templates
-```
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Docker & Docker Compose
-- Node.js 16+
-- PostgreSQL 14+
+- Node.js 16+ (for local development)
+- Git (for version control)
 
-### Local Development
+### 1. Clone and Setup
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/hpc-simulation-platform.git
+git clone https://github.com/yehao622/hpc-simulation-platform.git
 cd hpc-simulation-platform
 
-# Start development environment
+# Start all services
 docker-compose up -d
 
-# Install API dependencies
-cd api-gateway
-npm install
-npm run dev
+# Check service status
+docker-compose ps
 ```
 
-## 🤝 Contributing
+### 2. Verify Installation
+```bash
+# API Health Check
+curl http://localhost:3000/api/health
 
-This project follows Agile/SCRUM methodology:
-1. Check current sprint goals in [docs/current-status.md](docs/current-status.md)
-2. Create feature branch from `develop`
-3. Follow commit conventions: `feat:`, `fix:`, `docs:`, `refactor:`
-4. Submit PR with detailed description
-5. Ensure all tests pass and code review approval
+# API Documentation
+open http://localhost:3000/api/docs
+```
 
-## 📈 Performance Metrics
+### 3. Quick API Test
+```bash
+# Use the provided test script
+chmod +x api_test_script.sh
+./api_test_script.sh
+```
 
-Current platform capabilities:
-- **Concurrent Simulations**: Up to 10 parallel jobs
-- **API Response Time**: < 100ms for job submission
-- **Simulation Throughput**: 1000+ network nodes per simulation
-- **Data Processing**: Real-time metrics collection and storage
+## 📚 API Usage Examples
 
-## 📋 License
+### Authentication Flow
+```bash
+# Register new user
+curl -X POST http://localhost:3000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "researcher@university.edu",
+    "username": "researcher1",
+    "password": "securepassword123",
+    "firstName": "Jane",
+    "lastName": "Researcher",
+    "organization": "Research University"
+  }'
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+# Login and get JWT token
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "researcher@university.edu",
+    "password": "securepassword123"
+  }'
+```
 
-## 📞 Contact
+### Simulation Job Management
+```bash
+# Submit simulation job (requires JWT token)
+TOKEN="your-jwt-token-here"
 
-For questions about this project or professional inquiries:
-- **Email**: hyedailyuse@gmail.com
+curl -X POST http://localhost:3000/api/v1/simulations \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Fat-tree Performance Analysis",
+    "description": "Testing network performance under read-heavy workload",
+    "topologyId": 1,
+    "workloadId": 1,
+    "simulationTime": 10.0,
+    "numComputeNodes": 16,
+    "numStorageNodes": 8,
+    "workType": "read",
+    "dataSizeMb": 128.0
+  }'
+
+# Monitor job status
+JOB_ID="simulation-job-uuid"
+curl -X GET http://localhost:3000/api/v1/simulations/$JOB_ID \
+  -H "Authorization: Bearer $TOKEN"
+
+# List all jobs
+curl -X GET http://localhost:3000/api/v1/simulations \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ---
+
+## 🎯 Development Roadmap
+
+### ✅ Phase 1: Core Platform (COMPLETED)
+- [x] RESTful API design and implementation
+- [x] Database schema and user management
+- [x] JWT authentication and authorization
+- [x] Mock simulation engine with realistic results
+- [x] Docker containerization and service orchestration
+- [x] Comprehensive testing and documentation
+
+### 🔄 Phase 2: Advanced Features (NEXT)
+- [ ] GraphQL API for complex queries and relationships
+- [ ] WebSocket connections for real-time job updates
+- [ ] Enhanced analytics with time-series visualizations
+- [ ] Performance optimization with Redis caching
+- [ ] Monitoring integration with Prometheus/Grafana
+
+### 🚀 Phase 3: Production Deployment (PLANNED)
+- [ ] AWS infrastructure provisioning with Terraform
+- [ ] CI/CD pipeline with GitHub Actions
+- [ ] Auto-scaling and load balancing
+- [ ] Advanced monitoring and alerting
+- [ ] OMNeT++ simulator integration
+
+---
+
+## 💼 Professional Skills Demonstrated
+
+This project showcases modern software engineering practices:
+
+### **Backend Development**
+- RESTful API design with comprehensive validation
+- JWT authentication and authorization systems
+- Database design with PostgreSQL optimization
+- Microservices architecture with Docker
+- Async job processing with Redis queues
+
+### **DevOps & Infrastructure**
+- Docker containerization and orchestration
+- Service health monitoring and dependency management
+- Structured logging and error handling
+- Environment configuration and secrets management
+
+### **Professional Practices**
+- Agile development with sprint planning
+- Git workflow with feature branches
+- Comprehensive testing strategies
+- Technical documentation and API specs
+- Code quality with TypeScript and linting
+
+### **Domain Expertise**
+- HPC systems and network simulation
+- Performance metrics and analysis
+- Distributed systems design
+- API versioning and backwards compatibility
+
+---
+
+## 📁 Project Structure
+
+```
+hpc-simulation-platform/
+├── README.md                    # Project overview (this file)
+├── docker-compose.yml          # Multi-service development environment
+├── api_test_script.sh          # Comprehensive API testing script
+├── docs/                       # Technical documentation
+│   ├── development-log.md      # Detailed development progress
+│   ├── current-status.md       # Current capabilities and next steps
+│   └── quick-start.md         # Setup and usage guide
+├── api-gateway/                # Node.js/TypeScript API service
+│   ├── src/                   # Source code
+│   │   ├── controllers/       # API route handlers
+│   │   ├── middleware/        # Authentication and validation
+│   │   ├── routes/           # API route definitions
+│   │   └── types/            # TypeScript type definitions
+│   ├── database/             # Database schema and initialization
+│   └── package.json          # Node.js dependencies
+├── simulation-worker/          # Python async simulation processor
+│   ├── src/worker.py         # Mock simulation engine
+│   ├── requirements.txt      # Python dependencies
+│   └── Dockerfile           # Worker container configuration
+├── legacy-simulator/          # Original OMNeT++ HPC simulator
+└── .github/                  # CI/CD and issue templates
+```

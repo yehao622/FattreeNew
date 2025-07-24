@@ -6,6 +6,10 @@ import compression from 'compression';
 import morgan from 'morgan';
 import { Pool } from 'pg';
 
+// Import authentication components
+import * as authController from './controllers/authController';
+import { authenticateToken, authRateLimit } from './middleware/authMiddleware';
+
 const app = express();
 const port = parseInt(process.env.PORT || '3000', 10);
 
@@ -262,47 +266,47 @@ app.get('/api/v1/status', async (req, res) => {
 // Instead of loading external route files, implement routes directly
 
 // JWT middleware for authentication
-const authenticateToken = (req: any, res: any, next: any) => {
-  try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
+// const authenticateToken = (req: any, res: any, next: any) => {
+//   try {
+//     const authHeader = req.headers.authorization;
+//     const token = authHeader && authHeader.split(' ')[1];
 
-    if (!token) {
-      return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'Access token is required'
-      });
-    }
+//     if (!token) {
+//       return res.status(401).json({
+//         error: 'Unauthorized',
+//         message: 'Access token is required'
+//       });
+//     }
 
-    // For now, just check if token exists - full JWT validation would go here
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      return res.status(500).json({
-        error: 'Internal server error',
-        message: 'Authentication service not properly configured'
-      });
-    }
+//     // For now, just check if token exists - full JWT validation would go here
+//     const jwtSecret = process.env.JWT_SECRET;
+//     if (!jwtSecret) {
+//       return res.status(500).json({
+//         error: 'Internal server error',
+//         message: 'Authentication service not properly configured'
+//       });
+//     }
 
-    // Mock user for testing - replace with real JWT verification
-    req.user = {
-      userId: 1,
-      email: 'test@example.com'
-    };
+//     // Mock user for testing - replace with real JWT verification
+//     req.user = {
+//       userId: 1,
+//       email: 'test@example.com'
+//     };
 
-    console.log(`🔓 Authenticated user: ${req.user.email} (ID: ${req.user.userId})`);
-    next();
+//     console.log(`🔓 Authenticated user: ${req.user.email} (ID: ${req.user.userId})`);
+//     next();
 
-  } catch (error: any) {
-    console.error('💥 Authentication middleware error:', error);
-    res.status(500).json({
-      error: 'Internal server error',
-      message: 'Authentication failed'
-    });
-  }
-};
+//   } catch (error: any) {
+//     console.error('💥 Authentication middleware error:', error);
+//     res.status(500).json({
+//       error: 'Internal server error',
+//       message: 'Authentication failed'
+//     });
+//   }
+// };
 
 // Auth Routes - Direct Implementation
-app.post('/api/v1/auth/register', (req, res) => {
+app.post('/api/v1/auth/register', authRateLimit, authController.register, (req, res) => {
   console.log('📝 Registration attempt for:', req.body.email);
   res.status(503).json({
     error: 'Service temporarily unavailable',
@@ -311,7 +315,7 @@ app.post('/api/v1/auth/register', (req, res) => {
   });
 });
 
-app.post('/api/v1/auth/login', (req, res) => {
+app.post('/api/v1/auth/login', authRateLimit, authController.login, (req, res) => {
   console.log('🔑 Login attempt for:', req.body.email);
   res.status(503).json({
     error: 'Service temporarily unavailable',
@@ -320,7 +324,7 @@ app.post('/api/v1/auth/login', (req, res) => {
   });
 });
 
-app.get('/api/v1/auth/profile', authenticateToken, (req, res) => {
+app.get('/api/v1/auth/profile', authenticateToken, authController.getProfile, (req, res) => {
   console.log('👤 Profile request for user:', req.user?.userId);
   res.status(503).json({
     error: 'Service temporarily unavailable',
@@ -329,7 +333,7 @@ app.get('/api/v1/auth/profile', authenticateToken, (req, res) => {
   });
 });
 
-app.post('/api/v1/auth/refresh', authenticateToken, (req, res) => {
+app.post('/api/v1/auth/refresh', authenticateToken, authController.refreshToken, (req, res) => {
   console.log('🔄 Token refresh for user:', req.user?.email);
   res.status(503).json({
     error: 'Service temporarily unavailable',
