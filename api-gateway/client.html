@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPC Simulation Platform - Real-time Monitoring</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #1a1a1a;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4CAF50;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.connected { background: #1B5E20; }
+        .status.disconnected { background: #B71C1C; }
+        .status.connecting { background: #E65100; }
+        .logs {
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Monaco', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 2px 0;
+        }
+        .log-info { color: #4CAF50; }
+        .log-warning { color: #FF9800; }
+        .log-error { color: #f44336; }
+        .log-data { color: #2196F3; }
+        input, button {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        button {
+            background: #4CAF50;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .job-item {
+            background: #333;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 3px solid #4CAF50;
+        }
+        .progress-bar {
+            background: #444;
+            border-radius: 10px;
+            overflow: hidden;
+            height: 20px;
+            margin: 5px 0;
+        }
+        .progress-fill {
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            height: 100%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .metrics {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .metric {
+            background: #333;
+            padding: 10px;
+            border-radius: 4px;
+            min-width: 150px;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .metric-label {
+            color: #aaa;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 HPC Simulation Platform - Real-time Monitoring</h1>
+        
+        <!-- Connection Section -->
+        <div class="section">
+            <h3>🔗 WebSocket Connection</h3>
+            <div id="connectionStatus" class="status disconnected">Disconnected</div>
+            <div>
+                <input type="text" id="tokenInput" placeholder="Enter JWT token..." style="width: 300px;">
+                <button onclick="connect()">Connect</button>
+                <button onclick="disconnect()">Disconnect</button>
+            </div>
+        </div>
+
+        <!-- Active Jobs Section -->
+        <div class="section">
+            <h3>📊 Active Jobs</h3>
+            <button onclick="getActiveJobs()" id="refreshJobsBtn" disabled>Refresh Active Jobs</button>
+            <div id="activeJobs"></div>
+        </div>
+
+        <!-- Job Subscription Section -->
+        <div class="section">
+            <h3>🎯 Job Monitoring</h3>
+            <div>
+                <input type="text" id="jobIdInput" placeholder="Enter Job ID to monitor...">
+                <button onclick="subscribeToJob()" id="subscribeBtn" disabled>Subscribe</button>
+                <button onclick="unsubscribeFromJob()" id="unsubscribeBtn" disabled>Unsubscribe</button>
+            </div>
+            <div id="currentJob"></div>
+        </div>
+
+        <!-- Real-time Metrics -->
+        <div class="section">
+            <h3>📈 Real-time Metrics</h3>
+            <div class="metrics" id="metrics">
+                <div class="metric">
+                    <div class="metric-value" id="connectedUsers">0</div>
+                    <div class="metric-label">Connected Users</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="totalConnections">0</div>
+                    <div class="metric-label">Total Connections</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="activeJobsCount">0</div>
+                    <div class="metric-label">Active Jobs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Section -->
+        <div class="section">
+            <h3>📝 Real-time Logs</h3>
+            <button onclick="clearLogs()">Clear Logs</button>
+            <div id="logs" class="logs"></div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let currentJobId = null;
+        let connectedUsers = 0;
+        let totalConnections = 0;
+
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const logClass = `log-${type}`;
+            logs.innerHTML += `<div class="log-entry ${logClass}">[${timestamp}] ${message}</div>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function updateConnectionStatus(status, message) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = message;
+        }
+
+        function updateButtons(connected) {
+            document.getElementById('subscribeBtn').disabled = !connected;
+            document.getElementById('unsubscribeBtn').disabled = !connected;
+            document.getElementById('refreshJobsBtn').disabled = !connected;
+        }
+
+        function connect() {
+            const token = document.getElementById('tokenInput').value.trim();
+            if (!token) {
+                alert('Please enter a JWT token');
+                return;
+            }
+
+            if (socket) {
+                socket.disconnect();
+            }
+
+            updateConnectionStatus('connecting', 'Connecting...');
+            log('🔄 Attempting to connect to WebSocket...', 'info');
+
+            socket = io('ws://localhost:3000', {
+                auth: { token: token }
+            });
+
+            socket.on('connect', () => {
+                updateConnectionStatus('connected', 'Connected');
+                updateButtons(true);
+                log('✅ Connected to WebSocket server', 'info');
+            });
+
+            socket.on('connected', (data) => {
+                log(`👋 Connection confirmed: ${data.userEmail} (ID: ${data.userId})`, 'info');
+            });
+
+            socket.on('disconnect', (reason) => {
+                updateConnectionStatus('disconnected', 'Disconnected');
+                updateButtons(false);
+                log(`❌ Disconnected: ${reason}`, 'warning');
+            });
+
+            socket.on('connect_error', (error) => {
+                updateConnectionStatus('disconnected', 'Connection Failed');
+                updateButtons(false);
+                log(`💥 Connection error: ${error.message}`, 'error');
+            });
+
+            // Job-specific events
+            socket.on('job-subscribed', (data) => {
+                log(`📩 Subscribed to job: ${data.jobName} (${data.jobId})`, 'info');
+                currentJobId = data.jobId;
+            });
+
+            socket.on('job-status-update', (data) => {
+                log(`📊 Job status update: ${data.jobId} - ${data.status} (${data.progress}%)`, 'data');
+                updateJobDisplay(data);
+            });
+
+            socket.on('job-update', (data) => {
+                log(`🔄 Job update: ${data.jobId} - ${data.status}${data.progress ? ` (${data.progress}%)` : ''}`, 'data');
+                if (data.message) {
+                    log(`   Message: ${data.message}`, 'data');
+                }
+                updateJobDisplay(data);
+            });
+
+            socket.on('active-jobs', (data) => {
+                log(`📋 Active jobs received: ${data.count} jobs`, 'info');
+                updateActiveJobs(data.jobs);
+                document.getElementById('activeJobsCount').textContent = data.count;
+            });
+
+            socket.on('job-poll-update', (data) => {
+                log(`🔍 Poll update for job: ${data.jobId}`, 'data');
+                // Automatically request fresh status
+                socket.emit('get-job-status', data.jobId);
+            });
+
+            socket.on('error', (data) => {
+                log(`❌ Error: ${data.message}`, 'error');
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+            currentJobId = null;
+            updateConnectionStatus('disconnected', 'Disconnected');
+            updateButtons(false);
+            log('🔌 Disconnected from WebSocket', 'info');
+        }
+
+        function subscribeToJob() {
+            const jobId = document.getElementById('jobIdInput').value.trim();
+            if (!jobId) {
+                alert('Please enter a Job ID');
+                return;
+            }
+
+            if (!socket || !socket.connected) {
+                alert('Please connect to WebSocket first');
+                return;
+            }
+
+            socket.emit('subscribe-job', jobId);
+            log(`📡 Subscribing to job: ${jobId}`, 'info');
+        }
+
+        function unsubscribeFromJob() {
+            if (!currentJobId) {
+                alert('No job currently subscribed');
+                return;
+            }
+
+            if (!socket || !socket.connected) {
+                alert('Not connected to WebSocket');
+                return;
+            }
+
+            socket.emit('unsubscribe-job', currentJobId);
+            log(`📤 Unsubscribed from job: ${currentJobId}`, 'info');
+            currentJobId = null;
+            document.getElementById('currentJob').innerHTML = '';
+        }
+
+        function getActiveJobs() {
+            if (!socket || !socket.connected) {
+                alert('Please connect to WebSocket first');
+                return;
+            }
+
+            socket.emit('get-active-jobs');
+            log('📡 Requesting active jobs...', 'info');
+        }
+
+        function updateJobDisplay(jobData) {
+            const jobDisplay = document.getElementById('currentJob');
+            const progress = jobData.progress || 0;
+            
+            jobDisplay.innerHTML = `
+                <div class="job-item">
+                    <h4>🎯 ${jobData.name || jobData.jobId}</h4>
+                    <p><strong>Status:</strong> ${jobData.status}</p>
+                    <p><strong>Job ID:</strong> ${jobData.jobId}</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progress}%">${progress}%</div>
+                    </div>
+                    ${jobData.results ? `
+                        <p><strong>Results:</strong></p>
+                        <ul>
+                            <li>Throughput: ${jobData.results.totalThroughput?.toFixed(2)} MB/s</li>
+                            <li>Latency: ${jobData.results.averageLatency?.toFixed(2)} ms</li>
+                        </ul>
+                    ` : ''}
+                    ${jobData.errorMessage ? `<p style="color: #f44336;"><strong>Error:</strong> ${jobData.errorMessage}</p>` : ''}
+                    <p><small>Last updated: ${new Date(jobData.timestamp).toLocaleTimeString()}</small></p>
+                </div>
+            `;
+        }
+
+        function updateActiveJobs(jobs) {
+            const activeJobsEl = document.getElementById('activeJobs');
+            
+            if (!jobs || jobs.length === 0) {
+                activeJobsEl.innerHTML = '<p>No active jobs found</p>';
+                return;
+            }
+
+            let html = '';
+            jobs.forEach(job => {
+                const progress = job.progress || 0;
+                html += `
+                    <div class="job-item">
+                        <h5>📊 ${job.name}</h5>
+                        <p><strong>Status:</strong> ${job.status} | <strong>ID:</strong> ${job.id}</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progress}%">${progress}%</div>
+                        </div>
+                        <button onclick="monitorJob('${job.id}')">Monitor This Job</button>
+                    </div>
+                `;
+            });
+            activeJobsEl.innerHTML = html;
+        }
+
+        function monitorJob(jobId) {
+            document.getElementById('jobIdInput').value = jobId;
+            subscribeToJob();
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        // Auto-refresh active jobs every 30 seconds when connected
+        setInterval(() => {
+            if (socket && socket.connected) {
+                getActiveJobs();
+            }
+        }, 30000);
+
+        // Initial setup
+        log('🌐 WebSocket Test Client Ready', 'info');
+        log('📋 Instructions:', 'info');
+        log('1. Get JWT token by logging in via API (POST /api/v1/auth/login)', 'info');
+        log('2. Enter the token above and click Connect', 'info');
+        log('3. Create a simulation job via API (POST /api/v1/simulations)', 'info');
+        log('4. Enter the job ID and click Subscribe to monitor real-time progress', 'info');
+        log('5. Watch live updates as the job processes!', 'info');
+    </script>
+</body>
+</html>
